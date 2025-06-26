@@ -6,67 +6,72 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
 from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
 
-load_dotenv()  # Load .env variables
+# Load environment variables
+load_dotenv()
+os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
 
-# Load FAQs
+# Load CSV FAQs
 df = pd.read_csv('vjti_faqs.csv')
 df.dropna(inplace=True)
 docs = [Document(page_content=row['Answer'], metadata={"question": row['Question']}) for _, row in df.iterrows()]
 
-# Set Google API key
-os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
-
-# Embeddings + Vector DB
+# Create embeddings and FAISS vector store
 embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 vectorstore = FAISS.from_documents(docs, embeddings)
 
-# Chat model
+# Set up Gemini model and RAG chain
 llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0)
-qa = RetrievalQA.from_chain_type(llm=llm, retriever=vectorstore.as_retriever(), return_source_documents=True)
+qa = RetrievalQA.from_chain_type(
+    llm=llm,
+    retriever=vectorstore.as_retriever(),
+    return_source_documents=True
+)
 
-# Enhanced chat logic with fallback
+# 🧠 Smart chatbot logic: RAG first, then fallback to full LLM
 def ask_chatbot(query, history=None):
-    history_prompt = ""
-    if history:
-        for turn in history:
-            if turn["role"] == "user":
-                history_prompt += f"User: {turn['content']}\n"
-            elif turn["role"] == "assistant":
-                history_prompt += f"Assistant: {turn['content']}\n"
-    
-    full_prompt = f"{history_prompt}User: {query}\nAssistant:"
-    
-    # Try answering from FAQ
+    history = history or []
+
+    # Step 1: Try retrieval-based answer
     try:
-        result = qa.invoke(full_prompt)
+        result = qa.invoke(query)
         answer = result.get('result', '').strip()
         if answer and len(answer) > 10:
             return answer
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[RAG Error] {e}")
 
-    # Fallback to direct LLM
+    # Step 2: Fallback to full Gemini with chat history
+    history_prompt = ""
+    for turn in history:
+        role = turn.get("role", "")
+        content = turn.get("content", "")
+        if role == "user":
+            history_prompt += f"User: {content}\n"
+        elif role == "assistant":
+            history_prompt += f"Assistant: {content}\n"
+
+    full_prompt = f"{history_prompt}User: {query}\nAssistant:"
+
     try:
-        response = llm.invoke(query)
+        response = llm.invoke(full_prompt)
         return response.content.strip()
-    except Exception:
+    except Exception as e:
+        print(f"[LLM Fallback Error] {e}")
         return "⚠️ Sorry, I couldn't process your request right now."
 
-# Chatbot UI logic
+# 🧑‍💻 Gradio logic to handle message stream
 def chatbot_response(user_input, history):
     history = history or []
     history.append({"role": "user", "content": user_input})
-    history.append({"role": "assistant", "content": "⏳ Typing..."})  # temporary
-
+    history.append({"role": "assistant", "content": "⏳ Typing..."})  # temp message
     time.sleep(0.5)
     response = ask_chatbot(user_input, history)
     history[-1]["content"] = response
     return history
 
-# Custom CSS
+# 🎨 Custom CSS styling
 custom_css = """
 body {
     font-family: 'Segoe UI', sans-serif;
@@ -87,7 +92,7 @@ body {
 }
 """
 
-# Gradio UI
+# 🚀 Gradio app layout
 with gr.Blocks(css=custom_css) as demo:
     gr.Markdown("<h1 style='text-align: center;'>🤖 VJTI Helpdesk Chatbot</h1>")
 
@@ -111,8 +116,10 @@ with gr.Blocks(css=custom_css) as demo:
     msg.submit(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
     send.click(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
 
-# For deployment (Render, HF, etc.)
+ # 🌐 For Render or Hugging Face deployment
 demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+
+
 
 # PREVIOUS CODE
 # import gradio as gr
