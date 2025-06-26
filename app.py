@@ -22,7 +22,7 @@ embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 vectorstore = FAISS.from_documents(docs, embeddings)
 
 # Set up Gemini model and RAG chain
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash-latest", temperature=0.7)
 qa = RetrievalQA.from_chain_type(
     llm=llm,
     retriever=vectorstore.as_retriever(),
@@ -33,35 +33,42 @@ qa = RetrievalQA.from_chain_type(
 def ask_chatbot(query, history=None):
     history = history or []
 
-    # Step 1: Try FAQ match via similarity search
+    # Step 1: Run similarity search first (manual RAG control)
     try:
         matches = vectorstore.similarity_search_with_score(query, k=1)
-        if matches and matches[0][1] > 0.7:  # score > 0.7 means confident match
+        if matches and matches[0][1] > 0.7:
             result = qa.invoke(query)
-            answer = result.get('result', '').strip()
+            answer = result.get("result", "").strip()
             if answer and len(answer.split()) > 5:
-                return answer
+                return f"📌 *Based on our official FAQ:*\n\n{answer}"
     except Exception as e:
         print(f"[RAG error] {e}")
 
-    # Step 2: Format chat history for LLM fallback
+    # Step 2: Build prompt with personality for Gemini fallback
+    system_prompt = (
+        "You are the VJTI Helpdesk AI Assistant. "
+        "Besides providing answers from the official FAQ, "
+        "you are helpful, friendly, and capable of answering general queries "
+        "about college life, academics, VJTI location, admission, weather, and more."
+    )
+
     history_prompt = ""
     for turn in history:
-        role = turn.get("role", "")
-        content = turn.get("content", "")
-        if role == "user":
-            history_prompt += f"User: {content}\n"
-        elif role == "assistant":
-            history_prompt += f"Assistant: {content}\n"
+        if turn.get("role") == "user":
+            history_prompt += f"User: {turn['content']}\n"
+        elif turn.get("role") == "assistant":
+            history_prompt += f"Assistant: {turn['content']}\n"
 
-    full_prompt = f"{history_prompt}User: {query}\nAssistant:"
+    full_prompt = f"{system_prompt}\n\n{history_prompt}User: {query}\nAssistant:"
 
     try:
         response = llm.invoke(full_prompt)
-        return response.content.strip()
+        return f"💬 *AI Response:*\n\n{response.content.strip()}"
     except Exception as e:
         print(f"[LLM fallback error] {e}")
         return "⚠️ Sorry, I couldn't process your request right now."
+source_q = matches[0][0].metadata.get("question", "")
+return f"📌 *Based on:* \"{source_q}\"\n\n{answer}"
 
 
 # 🧑‍💻 Gradio logic to handle message stream
