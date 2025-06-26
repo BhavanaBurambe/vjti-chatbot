@@ -5,7 +5,8 @@ import pandas as pd
 from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
 from langchain.chains import RetrievalQA
-from langchain.embeddings import GoogleGenerativeAIEmbeddings
+# from langchain.embeddings import GoogleGenerativeAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.chat_models import ChatDeepInfra
 from dotenv import load_dotenv
 
