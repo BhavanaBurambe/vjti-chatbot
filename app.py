@@ -33,16 +33,18 @@ qa = RetrievalQA.from_chain_type(
 def ask_chatbot(query, history=None):
     history = history or []
 
-    # Step 1: Try retrieval-based answer
+    # Step 1: Try FAQ match via similarity search
     try:
-        result = qa.invoke(query)
-        answer = result.get('result', '').strip()
-        if answer and len(answer) > 10:
-            return answer
+        matches = vectorstore.similarity_search_with_score(query, k=1)
+        if matches and matches[0][1] > 0.7:  # score > 0.7 means confident match
+            result = qa.invoke(query)
+            answer = result.get('result', '').strip()
+            if answer and len(answer.split()) > 5:
+                return answer
     except Exception as e:
-        print(f"[RAG Error] {e}")
+        print(f"[RAG error] {e}")
 
-    # Step 2: Fallback to full Gemini with chat history
+    # Step 2: Format chat history for LLM fallback
     history_prompt = ""
     for turn in history:
         role = turn.get("role", "")
@@ -58,8 +60,9 @@ def ask_chatbot(query, history=None):
         response = llm.invoke(full_prompt)
         return response.content.strip()
     except Exception as e:
-        print(f"[LLM Fallback Error] {e}")
+        print(f"[LLM fallback error] {e}")
         return "⚠️ Sorry, I couldn't process your request right now."
+
 
 # 🧑‍💻 Gradio logic to handle message stream
 def chatbot_response(user_input, history):
