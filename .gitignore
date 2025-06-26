@@ -1,0 +1,35 @@
+# Ignore Python cache and virtual envs
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+env/
+venv/
+.venv/
+
+# Ignore environment variables
+.env
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Jupyter notebooks checkpoints (if any)
+.ipynb_checkpoints/
+
+# VS Code settings (optional)
+.vscode/
+
+# Ignore Streamlit or Gradio logs
+.streamlit/
+.gradio/
+
+# Ignore FAISS index if persisted to file
+faiss_index/
+*.faiss
+
+# Ignore logs/output files
+*.log
+*.tmp
