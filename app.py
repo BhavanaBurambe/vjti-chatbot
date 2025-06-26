@@ -1,4 +1,3 @@
-PREVIOUS CODE
 import gradio as gr
 import os
 import time
