@@ -5,7 +5,6 @@ import pandas as pd
 from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document
 from langchain.chains import RetrievalQA
-# from langchain.embeddings import GoogleGenerativeAIEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.chat_models import ChatDeepInfra
 from dotenv import load_dotenv
@@ -24,24 +23,24 @@ docs = [Document(page_content=row['Answer'], metadata={"question": row['Question
 embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 vectorstore = FAISS.from_documents(docs, embeddings)
 
-# DeepInfra LLM (Free, hosted)
+# DeepInfra LLM (free cloud-hosted)
 llm = ChatDeepInfra(
     model_id="mistralai/Mistral-7B-Instruct-v0.2",
     deepinfra_api_token=os.getenv("DEEPINFRA_API_KEY")
 )
 
-# RetrievalQA using LangChain
+# RetrievalQA setup
 qa = RetrievalQA.from_chain_type(
     llm=llm,
     retriever=vectorstore.as_retriever(),
     return_source_documents=True
 )
 
-# Main logic
+# Main logic with fallback
 def ask_chatbot(query, history=None):
     history = history or []
 
-    # Check vector similarity
+    # Step 1: Check if answer exists in vector store
     try:
         matches = vectorstore.similarity_search_with_score(query, k=1)
         if matches and matches[0][1] > 0.7:
@@ -52,7 +51,7 @@ def ask_chatbot(query, history=None):
     except Exception as e:
         print(f"[FAQ error] {e}")
 
-    # If FAQ failed, fallback to LLM
+    # Step 2: If no match, fallback to LLM with chat history
     history_prompt = ""
     for turn in history:
         if turn["role"] == "user":
@@ -62,18 +61,18 @@ def ask_chatbot(query, history=None):
 
     full_prompt = (
         "You are the VJTI Helpdesk Assistant. "
-        "You can answer both official college FAQs and general queries like location, admission help, etc.\n\n"
+        "Answer both official VJTI questions and general college-related queries like location, process, etc.\n\n"
         f"{history_prompt}User: {query}\nAssistant:"
     )
 
     try:
-        response = llm.invoke(full_prompt)
+        response = llm.invoke([{"role": "user", "content": full_prompt}])
         return f"💬 *AI Response:*\n\n{response.content.strip()}"
     except Exception as e:
         print(f"[LLM error] {e}")
         return "⚠️ Sorry, something went wrong while generating a response."
 
-# Gradio chat loop
+# Gradio chat logic
 def chatbot_response(user_input, history):
     history = history or []
     history.append({"role": "user", "content": user_input})
@@ -104,7 +103,7 @@ body {
 }
 """
 
-# Gradio app layout
+# Gradio UI
 with gr.Blocks(css=custom_css) as demo:
     gr.Markdown("<h1 style='text-align: center;'>🤖 VJTI Helpdesk Chatbot</h1>")
 
@@ -126,7 +125,7 @@ with gr.Blocks(css=custom_css) as demo:
     msg.submit(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
     send.click(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
 
-# For Render deployment
+# Run app on Render or local
 demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
 # PREVIOUS CODE
