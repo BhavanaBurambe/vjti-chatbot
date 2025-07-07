@@ -84,9 +84,10 @@ with gr.Blocks(css=custom_css) as demo:
     with gr.Row():
         msg = gr.Textbox(placeholder="Ask a question...", lines=1)
         send = gr.Button("Send")
-
-    with gr.Row():
         clear = gr.ClearButton([msg, chatbot])
+
+    # with gr.Row():
+        
 
     msg.submit(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
     send.click(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
