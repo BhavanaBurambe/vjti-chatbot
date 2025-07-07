@@ -81,9 +81,9 @@ with gr.Blocks(css=custom_css) as demo:
     ]
     )
     with gr.Row():
-    msg = gr.Textbox(placeholder="Ask a question...", lines=1, scale=5)
-    send = gr.Button("Send", scale=1)
-    clear = gr.Button("Clear", scale=1)
+        msg = gr.Textbox(placeholder="Ask a question...", lines=1, scale=5)
+        send = gr.Button("Send", scale=1)
+        clear = gr.Button("Clear", scale=1)
 
     def clear_inputs():
         return "", []
