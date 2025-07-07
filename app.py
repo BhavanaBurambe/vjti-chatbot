@@ -80,6 +80,17 @@ with gr.Blocks(css=custom_css) as demo:
         {"role": "assistant", "content": "Hello! I'm your VJTI Helpdesk Assistant. How can I help you today?"}
     ]
     )
+    with gr.Row():
+    msg = gr.Textbox(placeholder="Ask a question...", lines=1, scale=5)
+    send = gr.Button("Send", scale=1)
+    clear = gr.Button("Clear", scale=1)
+
+    def clear_inputs():
+        return "", []
+
+    send.click(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
+    clear.click(clear_inputs, outputs=[msg, chatbot])
+
 
     # with gr.Row():
     #     msg = gr.Textbox(placeholder="Ask a question...", lines=1)
@@ -91,17 +102,6 @@ with gr.Blocks(css=custom_css) as demo:
 
     # msg.submit(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
     # send.click(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
-
-with gr.Row():
-    msg = gr.Textbox(placeholder="Ask a question...", lines=1, scale=5)
-    send = gr.Button("Send", scale=1)
-    clear = gr.Button("Clear", scale=1)
-
-    def clear_inputs():
-        return "", []
-
-    send.click(chatbot_response, inputs=[msg, chatbot], outputs=chatbot).then(lambda: "", None, msg)
-    clear.click(clear_inputs, outputs=[msg, chatbot])
 
 # demo.launch()
 # for render
